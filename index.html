@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#f8fafc">
   <title>คลังพัสดุ Kalapapruek | ระบบเบิก-คืน</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { font-family: "Leelawadee UI", Tahoma, sans-serif; }
     button, input, select, textarea { font: inherit; }
@@ -21,7 +22,10 @@
           <img src="data:image/jpeg;base64,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" alt="ตรา Kalapapruek 2026" class="h-12 w-12 shrink-0 rounded-2xl bg-white object-contain p-0.5 shadow-sm ring-1 ring-slate-100">
           <div class="min-w-0"><h1 class="truncate text-lg font-extrabold leading-tight">คลังพัสดุ Kalapapruek</h1><p class="text-xs text-slate-500">ระบบจัดการและเบิก-คืนของประจำสี</p></div>
         </div>
-        <span class="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">● บันทึกในเครื่อง</span>
+        <div class="flex shrink-0 items-center gap-2">
+          <span class="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:inline-flex">● บันทึกในเครื่อง</span>
+          <button id="open-share" type="button" class="rounded-xl border border-orange-200 bg-white px-3 py-2 text-xs font-bold text-orange-700 shadow-sm hover:bg-orange-50" aria-label="แชร์ลิงก์หรือแสดง QR Code">🔗 แชร์ / QR Code</button>
+        </div>
       </div>
       <nav class="flex gap-1 overflow-x-auto px-3 pb-2 sm:px-5" aria-label="เมนูหลัก">
         <button data-page="inventory" class="nav-btn nav-active shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold">📦 ภาพรวมคลัง</button>
@@ -104,6 +108,22 @@
       <p class="text-xs text-slate-500">กรอกสองยอดให้รวมเท่ากับจำนวนที่กำลังเบิกอยู่ เพื่อปิดรายการให้ครบถ้วน</p>
       <button type="submit" class="w-full rounded-xl bg-blue-600 px-5 py-3.5 font-extrabold text-white hover:bg-blue-700">ยืนยันการคืน</button>
     </form>
+  </dialog>
+  <dialog id="share-dialog" aria-labelledby="share-title" class="w-[calc(100%-2rem)] max-w-sm rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/40">
+    <div class="space-y-4 p-5 text-center">
+      <div class="flex items-start justify-between text-left">
+        <div><p class="text-sm font-bold text-orange-600">แชร์เว็บไซต์</p><h2 id="share-title" class="mt-1 text-xl font-extrabold">สแกน QR Code</h2></div>
+        <button type="button" class="close-dialog rounded-lg px-3 py-1 text-xl text-slate-400" aria-label="ปิด">×</button>
+      </div>
+      <p class="text-sm text-slate-500">ให้เพื่อนสแกนเพื่อเปิดคลังพัสดุบนมือถือ</p>
+      <div id="qr-code" class="mx-auto flex min-h-60 w-60 items-center justify-center rounded-2xl bg-white p-2" aria-label="QR Code สำหรับเปิดเว็บไซต์"></div>
+      <p id="qr-error" class="hidden rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert"></p>
+      <div class="flex gap-2">
+        <input id="share-url" type="text" readonly aria-label="ลิงก์เว็บไซต์" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <button id="copy-share-url" type="button" class="shrink-0 rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-600">คัดลอก</button>
+      </div>
+      <p id="share-feedback" class="min-h-5 text-sm text-emerald-700" role="status" aria-live="polite"></p>
+    </div>
   </dialog>
   <div id="toast" class="fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg" role="status"></div>
 
@@ -247,6 +267,49 @@
       $("#checkout-item").addEventListener("change", updateAvailableHint);
       $("#open-add").addEventListener("click", () => $("#add-dialog").showModal());
       document.querySelectorAll(".close-dialog").forEach(button => button.addEventListener("click", () => button.closest("dialog").close()));
+      $("#open-share").addEventListener("click", () => {
+        const url = window.location.href;
+        const qrCode = $("#qr-code");
+        const qrError = $("#qr-error");
+        qrCode.replaceChildren();
+        qrError.textContent = "";
+        qrError.classList.add("hidden");
+        $("#share-url").value = url;
+        $("#share-feedback").textContent = "";
+        if (typeof window.QRCode !== "function") {
+          qrError.textContent = "โหลดเครื่องมือ QR Code ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองเปิดอีกครั้ง";
+          qrError.classList.remove("hidden");
+        } else {
+          try {
+            new window.QRCode(qrCode, {
+              text: url,
+              width: 224,
+              height: 224,
+              colorDark: "#0f172a",
+              colorLight: "#ffffff",
+              correctLevel: window.QRCode.CorrectLevel.M
+            });
+          } catch (error) {
+            console.error("ไม่สามารถสร้าง QR Code ได้", error);
+            qrError.textContent = "สร้าง QR Code ไม่สำเร็จ กรุณาคัดลอกลิงก์ด้านล่างแทน";
+            qrError.classList.remove("hidden");
+          }
+        }
+        $("#share-dialog").showModal();
+      });
+      $("#copy-share-url").addEventListener("click", async () => {
+        const input = $("#share-url");
+        try {
+          if (!navigator.clipboard) throw new Error("Clipboard API is unavailable");
+          await navigator.clipboard.writeText(input.value);
+          $("#share-feedback").textContent = "คัดลอกลิงก์แล้ว";
+        } catch (error) {
+          console.error("ไม่สามารถคัดลอกลิงก์ได้", error);
+          input.focus();
+          input.select();
+          $("#share-feedback").textContent = "คัดลอกอัตโนมัติไม่ได้ กรุณาคัดลอกจากช่องลิงก์";
+        }
+      });
       $("#inventory-list").addEventListener("click", event => {
         const button = event.target.closest("button");
         if (!button) return;
