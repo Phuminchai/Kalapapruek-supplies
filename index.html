@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f8fafc">
+  <title>คลังพัสดุ Kalapapruek | ระบบเบิก-คืน</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: "Leelawadee UI", Tahoma, sans-serif; }
+    button, input, select, textarea { font: inherit; }
+    .nav-active { background: #fff7ed; color: #c2410c; }
+    .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800">
+  <div class="mx-auto min-h-screen max-w-6xl">
+    <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div class="flex items-center justify-between px-4 py-3 sm:px-6">
+        <div class="flex min-w-0 items-center gap-3">
+          <img src="data:image/jpeg;base64,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" alt="ตรา Kalapapruek 2026" class="h-12 w-12 shrink-0 rounded-2xl bg-white object-contain p-0.5 shadow-sm ring-1 ring-slate-100">
+          <div class="min-w-0"><h1 class="truncate text-lg font-extrabold leading-tight">คลังพัสดุ Kalapapruek</h1><p class="text-xs text-slate-500">ระบบจัดการและเบิก-คืนของประจำสี</p></div>
+        </div>
+        <span class="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">● บันทึกในเครื่อง</span>
+      </div>
+      <nav class="flex gap-1 overflow-x-auto px-3 pb-2 sm:px-5" aria-label="เมนูหลัก">
+        <button data-page="inventory" class="nav-btn nav-active shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold">📦 ภาพรวมคลัง</button>
+        <button data-page="checkout" class="nav-btn shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500">➖ เบิกของ</button>
+        <button data-page="history" class="nav-btn shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500">🧾 ประวัติเบิก-คืน</button>
+      </nav>
+    </header>
+
+    <main class="px-4 py-5 sm:px-6 sm:py-7">
+      <section id="page-inventory" class="page">
+        <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div><p class="text-sm font-bold text-orange-600">ภาพรวมคลัง</p><h2 class="mt-1 text-2xl font-extrabold">เสบียงและของใช้ประจำสี</h2><p class="mt-1 text-sm text-slate-500">เช็กของพร้อมใช้ เติมสต็อก และติดตามยอดเบิก-คืน</p></div>
+          <button id="open-add" class="rounded-xl bg-orange-500 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-600">＋ เพิ่มรายการ</button>
+        </div>
+        <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          <article class="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm sm:p-5"><p class="text-xs font-semibold text-slate-500 sm:text-sm">รายการทั้งหมด</p><p id="stat-types" class="mt-2 text-2xl font-extrabold sm:text-3xl">0</p><p class="text-xs text-slate-400">รายการ</p></article>
+          <article class="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 shadow-sm sm:p-5"><p class="text-xs font-semibold text-emerald-700 sm:text-sm">คงเหลือพร้อมใช้</p><p id="stat-available" class="mt-2 text-2xl font-extrabold text-emerald-700 sm:text-3xl">0</p><p class="text-xs text-emerald-600">ชิ้น</p></article>
+          <article class="rounded-2xl border border-orange-100 bg-orange-50 p-3 shadow-sm sm:p-5"><p class="text-xs font-semibold text-orange-700 sm:text-sm">กำลังถูกเบิก</p><p id="stat-in-use" class="mt-2 text-2xl font-extrabold text-orange-700 sm:text-3xl">0</p><p class="text-xs text-orange-600">ชิ้น</p></article>
+          <article class="rounded-2xl border border-blue-100 bg-blue-50 p-3 shadow-sm sm:p-5"><p class="text-xs font-semibold text-blue-700 sm:text-sm">คืนเข้าคลังสะสม</p><p id="stat-returned" class="mt-2 text-2xl font-extrabold text-blue-700 sm:text-3xl">0</p><p class="text-xs text-blue-600">ชิ้น</p></article>
+          <article class="rounded-2xl border border-rose-100 bg-rose-50 p-3 shadow-sm sm:p-5"><p class="text-xs font-semibold text-rose-700 sm:text-sm">ใช้หมด / เสียหาย / สูญหาย</p><p id="stat-written-off" class="mt-2 text-2xl font-extrabold text-rose-700 sm:text-3xl">0</p><p class="text-xs text-rose-600">ชิ้น</p></article>
+        </div>
+        <div class="mb-3 flex items-center justify-between"><h3 class="font-extrabold">ของในคลัง</h3><span id="item-count" class="text-xs text-slate-500"></span></div>
+        <div id="inventory-list" class="grid gap-3 sm:grid-cols-2"></div>
+      </section>
+
+      <section id="page-checkout" class="page hidden">
+        <div class="mb-5"><p class="text-sm font-bold text-orange-600">ตัดสต็อกออกจากคลัง</p><h2 class="mt-1 text-2xl font-extrabold">เบิกของด่วน</h2><p class="mt-1 text-sm text-slate-500">ระบุจำนวนและผู้เบิก เมื่อคืนให้แยกยอดที่คืนกับยอดที่ใช้หมด/เสียหาย/สูญหาย</p></div>
+        <form id="checkout-form" class="max-w-xl space-y-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6">
+          <label class="block text-sm font-bold">รายการ<select id="checkout-item" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-base font-normal outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"></select></label>
+          <div id="available-hint" class="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"></div>
+          <label class="block text-sm font-bold">จำนวนที่เบิก<input id="checkout-qty" type="number" min="1" step="1" required placeholder="เช่น 50" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3.5 text-base font-normal outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"></label>
+          <label class="block text-sm font-bold">ชื่อผู้เบิก / จุดใช้งาน<input id="checkout-name" required maxlength="80" placeholder="เช่น สมชาย ม.5/2 หรือ ฝ่ายสแตนด์เชียร์" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3.5 text-base font-normal outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"></label>
+          <label class="block text-sm font-bold">หมายเหตุเพิ่มเติม <span class="font-normal text-slate-400">(ไม่บังคับ)</span><textarea id="checkout-note" maxlength="160" rows="2" placeholder="เช่น ใช้ที่สแตนด์เชียร์ช่วงบ่าย" class="mt-2 w-full resize-y rounded-xl border border-slate-300 px-4 py-3 text-base font-normal outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"></textarea></label>
+          <button type="submit" class="w-full rounded-xl bg-orange-500 px-5 py-4 text-base font-extrabold text-white shadow-sm hover:bg-orange-600 active:scale-[.99]">ยืนยันการเบิก</button>
+        </form>
+      </section>
+
+      <section id="page-history" class="page hidden">
+        <div class="mb-5"><p class="text-sm font-bold text-orange-600">ติดตามการเบิกและการคืน</p><h2 class="mt-1 text-2xl font-extrabold">ประวัติเบิก-คืน</h2><p class="mt-1 text-sm text-slate-500">รายการล่าสุดอยู่ด้านบน · คืนเข้าคลังและยอดใช้หมด/เสียหายแสดงแยกกัน</p></div>
+        <div id="history-list" class="grid gap-3 sm:grid-cols-2"></div>
+      </section>
+    </main>
+    <footer class="safe-bottom px-4 pb-6 text-center text-xs text-slate-400">ข้อมูลจัดเก็บใน LocalStorage ของเบราว์เซอร์เครื่องนี้</footer>
+  </div>
+
+  <dialog id="add-dialog" class="w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/40">
+    <form id="add-form" class="space-y-4 p-5">
+      <div class="flex items-start justify-between"><div><p class="text-sm font-bold text-orange-600">เพิ่มเข้าคลัง</p><h2 class="mt-1 text-xl font-extrabold">รายการใหม่</h2></div><button type="button" class="close-dialog rounded-lg px-3 py-1 text-xl text-slate-400" aria-label="ปิด">×</button></div>
+      <label class="block text-sm font-bold">ชื่อรายการ<input id="new-item-name" required maxlength="60" placeholder="เช่น น้ำแดง" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 font-normal outline-none focus:border-orange-500"></label>
+      <label class="block text-sm font-bold">จำนวนเริ่มต้น<input id="new-item-qty" type="number" min="1" step="1" required placeholder="เช่น 48" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 font-normal outline-none focus:border-orange-500"></label>
+      <label class="block text-sm font-bold">หมายเหตุ <span class="font-normal text-slate-400">(ไม่บังคับ)</span><textarea id="new-item-note" maxlength="160" rows="2" placeholder="เช่น รสส้ม · เก็บที่เต็นท์สี" class="mt-2 w-full resize-y rounded-xl border border-slate-300 px-4 py-3 font-normal outline-none focus:border-orange-500"></textarea></label>
+      <button type="submit" class="w-full rounded-xl bg-orange-500 px-5 py-3.5 font-extrabold text-white">เพิ่มเข้าคลัง</button>
+    </form>
+  </dialog>
+
+  <dialog id="restock-dialog" class="w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/40">
+    <form id="restock-form" class="space-y-4 p-5">
+      <div class="flex items-start justify-between"><div><p class="text-sm font-bold text-emerald-600">เติมของเข้าคลัง</p><h2 id="restock-title" class="mt-1 text-xl font-extrabold">เติมสต็อก</h2></div><button type="button" class="close-dialog rounded-lg px-3 py-1 text-xl text-slate-400" aria-label="ปิด">×</button></div>
+      <p id="restock-context" class="text-sm text-slate-500"></p>
+      <label class="block text-sm font-bold">จำนวนที่เติม<input id="restock-qty" type="number" min="1" step="1" required placeholder="เช่น 24" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3.5 font-normal outline-none focus:border-emerald-500"></label>
+      <button type="submit" class="w-full rounded-xl bg-emerald-600 px-5 py-3.5 font-extrabold text-white hover:bg-emerald-700">ยืนยันเติมสต็อก</button>
+    </form>
+  </dialog>
+
+  <dialog id="note-dialog" class="w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/40">
+    <form id="note-form" class="space-y-4 p-5">
+      <div class="flex items-start justify-between"><div><p class="text-sm font-bold text-orange-600">รายละเอียดรายการ</p><h2 id="note-title" class="mt-1 text-xl font-extrabold">หมายเหตุ</h2></div><button type="button" class="close-dialog rounded-lg px-3 py-1 text-xl text-slate-400" aria-label="ปิด">×</button></div>
+      <label class="block text-sm font-bold">หมายเหตุ<textarea id="item-note" maxlength="160" rows="3" placeholder="เช่น ยี่ห้อ จุดเก็บของ หรือรายละเอียดเพิ่มเติม" class="mt-2 w-full resize-y rounded-xl border border-slate-300 px-4 py-3 font-normal outline-none focus:border-orange-500"></textarea></label>
+      <button type="submit" class="w-full rounded-xl bg-orange-500 px-5 py-3.5 font-extrabold text-white">บันทึกหมายเหตุ</button>
+    </form>
+  </dialog>
+
+  <dialog id="return-dialog" class="w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/40">
+    <form id="return-form" class="space-y-4 p-5">
+      <div class="flex items-start justify-between"><div><p class="text-sm font-bold text-blue-700">สรุปยอดคืน</p><h2 id="return-title" class="mt-1 text-xl font-extrabold">รับคืนรายการ</h2></div><button type="button" class="close-dialog rounded-lg px-3 py-1 text-xl text-slate-400" aria-label="ปิด">×</button></div>
+      <p id="return-context" class="text-sm text-slate-600"></p>
+      <label class="block text-sm font-bold">จำนวนที่คืนเข้าคลัง<input id="return-qty" type="number" min="0" step="1" required class="mt-2 w-full rounded-xl border border-blue-200 px-4 py-3.5 font-normal outline-none focus:border-blue-500"></label>
+      <label class="block text-sm font-bold">จำนวนที่ใช้หมด / เสียหาย / สูญหาย<input id="writeoff-qty" type="number" min="0" step="1" required class="mt-2 w-full rounded-xl border border-rose-200 px-4 py-3.5 font-normal outline-none focus:border-rose-500"></label>
+      <p id="return-balance" class="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600"></p>
+      <p class="text-xs text-slate-500">กรอกสองยอดให้รวมเท่ากับจำนวนที่กำลังเบิกอยู่ เพื่อปิดรายการให้ครบถ้วน</p>
+      <button type="submit" class="w-full rounded-xl bg-blue-600 px-5 py-3.5 font-extrabold text-white hover:bg-blue-700">ยืนยันการคืน</button>
+    </form>
+  </dialog>
+  <div id="toast" class="fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg" role="status"></div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "kalapapruek-supplies-loans-v3";
+      const initialItems = [
+        { id: "red-drink", name: "น้ำแดง", available: 48, total: 48, note: "" },
+        { id: "snacks", name: "ขนม", available: 80, total: 80, note: "" },
+        { id: "cups", name: "แก้วน้ำ", available: 100, total: 100, note: "" },
+        { id: "fans", name: "พัด", available: 20, total: 20, note: "" }
+      ];
+      const $ = selector => document.querySelector(selector);
+      let state;
+      let noteItemId = null;
+      let restockItemId = null;
+      let returnLoanId = null;
+      let toastTimer;
+      let loadWarning = "";
+
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        state = saved ? JSON.parse(saved) : { items: initialItems.map(item => ({ ...item })), loans: [] };
+        if (!state || !Array.isArray(state.items) || !Array.isArray(state.loans)) throw new Error("ข้อมูลคลังไม่ถูกต้อง");
+        state.items.forEach(item => {
+          if (!Number.isSafeInteger(item.available) || item.available < 0 || !Number.isSafeInteger(item.total) || item.total < item.available) throw new Error("จำนวนสต็อกไม่ถูกต้อง");
+          if (typeof item.note !== "string") item.note = "";
+        });
+        state.loans.forEach(loan => {
+          if (!Array.isArray(loan.returns)) loan.returns = [];
+          if (loan.status !== "returned" && loan.status !== "cancelled") loan.status = "active";
+        });
+      } catch (error) {
+        console.error("ไม่สามารถอ่านข้อมูลคลังเบิก-คืนได้", error);
+        state = { items: initialItems.map(item => ({ ...item })), loans: [] };
+        loadWarning = "ข้อมูลเดิมอ่านไม่ได้ จึงเริ่มด้วยรายการตัวอย่าง";
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+      }
+      function showToast(message) {
+        const toast = $("#toast");
+        toast.textContent = message;
+        toast.classList.remove("hidden");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.add("hidden"), 2800);
+      }
+      function save() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          return true;
+        } catch (error) {
+          console.error("ไม่สามารถบันทึกข้อมูลคลังเบิก-คืนได้", error);
+          return false;
+        }
+      }
+      function commit(message) {
+        const saved = save();
+        render();
+        showToast(saved ? message : "เปลี่ยนข้อมูลแล้ว แต่บันทึกในเครื่องไม่สำเร็จ กรุณาตรวจสอบพื้นที่ LocalStorage");
+      }
+      function formatTimestamp(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "ไม่ระบุเวลา" : date.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+      }
+      function emptyState(title, message) {
+        return `<div class="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center sm:col-span-2"><div class="text-3xl">📋</div><p class="mt-2 font-bold">${title}</p><p class="mt-1 text-sm text-slate-500">${message}</p></div>`;
+      }
+      function quantitiesFor(itemId) {
+        return state.loans.reduce((totals, loan) => {
+          if (loan.itemId !== itemId) return totals;
+          if (loan.status === "active") totals.inUse += loan.qty;
+          loan.returns.forEach(entry => {
+            totals.returned += entry.returnedQty;
+            totals.writeoff += entry.writeoffQty;
+          });
+          return totals;
+        }, { inUse: 0, returned: 0, writeoff: 0 });
+      }
+      function render() {
+        const activeLoans = state.loans.filter(loan => loan.status === "active");
+        const available = state.items.reduce((sum, item) => sum + item.available, 0);
+        const inUse = activeLoans.reduce((sum, loan) => sum + loan.qty, 0);
+        const returned = state.loans.reduce((sum, loan) => sum + loan.returns.reduce((sub, entry) => sub + entry.returnedQty, 0), 0);
+        const writtenOff = state.loans.reduce((sum, loan) => sum + loan.returns.reduce((sub, entry) => sub + entry.writeoffQty, 0), 0);
+        $("#stat-types").textContent = state.items.length;
+        $("#stat-available").textContent = available;
+        $("#stat-in-use").textContent = inUse;
+        $("#stat-returned").textContent = returned;
+        $("#stat-written-off").textContent = writtenOff;
+        $("#item-count").textContent = state.items.length + " รายการ";
+        $("#inventory-list").innerHTML = state.items.length ? state.items.map(item => {
+          const totals = quantitiesFor(item.id);
+          const ratio = item.total ? Math.round(item.available / item.total * 100) : 0;
+          return `<article class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h4 class="break-words font-extrabold">${escapeHtml(item.name)}</h4><p class="mt-1 text-xs text-slate-500">กำลังเบิก ${totals.inUse} · คืนแล้ว ${totals.returned} · ใช้หมด/เสียหาย/สูญหาย ${totals.writeoff}</p></div><span class="shrink-0 rounded-xl bg-emerald-50 px-3 py-2 text-right"><strong class="block text-xl text-emerald-700">${item.available} <span class="text-sm font-bold">/ ${item.total}</span></strong><span class="text-[11px] text-emerald-700">เหลือ / จากทั้งหมด (ชิ้น)</span></span></div>
+            <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-400" style="width:${ratio}%"></div></div>
+            <p class="mt-3 min-h-5 break-words text-sm ${item.note ? "text-slate-600" : "text-slate-400"}">${item.note ? escapeHtml(item.note) : "ยังไม่มีหมายเหตุ"}</p>
+            <div class="mt-3 grid grid-cols-3 gap-2"><button data-restock="${escapeHtml(item.id)}" class="rounded-xl bg-emerald-50 px-2 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100">＋ เติมสต็อก</button><button data-note="${escapeHtml(item.id)}" class="rounded-xl border border-slate-200 px-2 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">หมายเหตุ</button><button data-delete="${escapeHtml(item.id)}" class="rounded-xl border border-rose-200 px-2 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50">ลบ</button></div>
+          </article>`;
+        }).join("") : emptyState("ยังไม่มีของในคลัง", "กด “เพิ่มรายการ” เพื่อเริ่มจัดการเสบียง");
+        const selected = $("#checkout-item").value;
+        const options = state.items.map(item => `<option value="${escapeHtml(item.id)}" ${item.available < 1 ? "disabled" : ""}>${escapeHtml(item.name)} (เหลือ ${item.available})</option>`).join("");
+        $("#checkout-item").innerHTML = options || '<option value="">ไม่มีรายการในคลัง</option>';
+        if (state.items.some(item => item.id === selected && item.available > 0)) $("#checkout-item").value = selected;
+        updateAvailableHint();
+        const canCheckout = state.items.some(item => item.available > 0);
+        $("#checkout-form button[type=submit]").disabled = !canCheckout;
+        $("#checkout-form button[type=submit]").classList.toggle("opacity-50", !canCheckout);
+        const sortedLoans = [...state.loans].sort((a, b) => new Date(b.checkedOutAt) - new Date(a.checkedOutAt));
+        $("#history-list").innerHTML = sortedLoans.length ? sortedLoans.map(loan => {
+          const returnedQty = loan.returns.reduce((sum, entry) => sum + entry.returnedQty, 0);
+          const writeoffQty = loan.returns.reduce((sum, entry) => sum + entry.writeoffQty, 0);
+          const active = loan.status === "active";
+          const cancelled = loan.status === "cancelled";
+          const statusText = active ? "กำลังเบิก" : cancelled ? "ยกเลิกเบิกแล้ว · คืนยอดทั้งหมด" : "ปิดรายการคืนแล้ว";
+          const statusStyle = active ? "bg-orange-50 text-orange-700" : cancelled ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700";
+          const returnDetails = loan.returns.map(entry => `<div class="mt-3 rounded-xl bg-blue-50 p-3 text-sm"><p class="font-bold text-blue-800">คืนเข้าคลัง ${entry.returnedQty} ชิ้น</p><p class="mt-1 text-rose-700">ใช้หมด / เสียหาย / สูญหาย ${entry.writeoffQty} ชิ้น</p><p class="mt-1 text-xs text-slate-500">คืนเมื่อ ${escapeHtml(formatTimestamp(entry.returnedAt))}</p></div>`).join("");
+          return `<article class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h3 class="font-extrabold">${escapeHtml(loan.itemName)}</h3><span class="rounded-full ${statusStyle} px-2.5 py-1 text-[11px] font-bold">${statusText}</span></div><p class="mt-1 break-words text-sm text-slate-600">${escapeHtml(loan.borrower)}</p><p class="mt-2 text-sm">เบิก ${loan.qty} ชิ้น · คืนเข้าคลัง ${returnedQty} · ใช้หมด/เสียหาย/สูญหาย ${writeoffQty}</p>${loan.note ? `<p class="mt-2 whitespace-pre-wrap break-words rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">${escapeHtml(loan.note)}</p>` : ""}<p class="mt-2 text-xs text-slate-500">เบิกเมื่อ ${escapeHtml(formatTimestamp(loan.checkedOutAt))}</p>${cancelled ? `<p class="mt-1 text-xs text-slate-500">ยกเลิกเมื่อ ${escapeHtml(formatTimestamp(loan.cancelledAt))}</p>` : ""}${returnDetails}</div></div>
+            ${active ? `<div class="mt-4 grid gap-2 sm:grid-cols-2"><button data-return="${escapeHtml(loan.id)}" class="w-full rounded-xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700">คืน / สรุปยอด</button><button data-cancel="${escapeHtml(loan.id)}" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 font-bold text-rose-700 hover:bg-rose-100">ยกเลิกเบิก</button></div>` : ""}
+          </article>`;
+        }).join("") : emptyState("ยังไม่มีประวัติเบิก-คืน", "รายการที่ยืนยันเบิกจะปรากฏที่นี่");
+      }
+      function updateAvailableHint() {
+        const item = state.items.find(entry => entry.id === $("#checkout-item").value);
+        $("#available-hint").textContent = (item ? item.available : 0) + " ชิ้นพร้อมเบิก";
+      }
+      function openPage(page) {
+        document.querySelectorAll(".page").forEach(section => section.classList.toggle("hidden", section.id !== "page-" + page));
+        document.querySelectorAll(".nav-btn").forEach(button => {
+          const active = button.dataset.page === page;
+          button.classList.toggle("nav-active", active);
+          button.classList.toggle("text-slate-500", !active);
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      document.querySelectorAll(".nav-btn").forEach(button => button.addEventListener("click", () => openPage(button.dataset.page)));
+      $("#checkout-item").addEventListener("change", updateAvailableHint);
+      $("#open-add").addEventListener("click", () => $("#add-dialog").showModal());
+      document.querySelectorAll(".close-dialog").forEach(button => button.addEventListener("click", () => button.closest("dialog").close()));
+      $("#inventory-list").addEventListener("click", event => {
+        const button = event.target.closest("button");
+        if (!button) return;
+        const id = button.dataset.restock || button.dataset.note || button.dataset.delete;
+        const item = state.items.find(entry => entry.id === id);
+        if (!item) return;
+        if (button.dataset.restock) {
+          restockItemId = item.id;
+          $("#restock-title").textContent = "เติมสต็อก: " + item.name;
+          $("#restock-context").textContent = `ปัจจุบันเหลือ ${item.available} จากทั้งหมด ${item.total} ชิ้น`;
+          $("#restock-qty").value = "";
+          $("#restock-dialog").showModal();
+          return;
+        }
+        if (button.dataset.note) {
+          noteItemId = item.id;
+          $("#note-title").textContent = "หมายเหตุ: " + item.name;
+          $("#item-note").value = item.note;
+          $("#note-dialog").showModal();
+          return;
+        }
+        if (state.loans.some(loan => loan.itemId === item.id && loan.status === "active")) return showToast("ยังลบไม่ได้ เพราะมีรายการที่กำลังเบิกอยู่");
+        if (!window.confirm(`ยืนยันลบ “${item.name}” ออกจากคลังหรือไม่?`)) return;
+        state.loans.forEach(loan => { if (loan.itemId === item.id) loan.itemName = item.name; });
+        state.items = state.items.filter(entry => entry.id !== item.id);
+        commit("ลบรายการออกจากคลังแล้ว");
+      });
+      $("#add-form").addEventListener("submit", event => {
+        event.preventDefault();
+        const name = $("#new-item-name").value.trim();
+        const qty = Number($("#new-item-qty").value);
+        const note = $("#new-item-note").value.trim();
+        if (!name || !Number.isSafeInteger(qty) || qty < 1) return showToast("กรุณากรอกชื่อและจำนวนให้ถูกต้อง");
+        const existing = state.items.find(item => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+        if (existing) {
+          if (!Number.isSafeInteger(existing.available + qty) || !Number.isSafeInteger(existing.total + qty)) return showToast("จำนวนมากเกินกว่าที่ระบบรองรับ");
+          existing.available += qty;
+          existing.total += qty;
+          if (note) existing.note = note;
+        } else state.items.push({ id: "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7), name, available: qty, total: qty, note });
+        event.target.reset();
+        $("#add-dialog").close();
+        commit(existing ? "เติมจำนวนรายการเดิมเข้าคลังแล้ว" : "เพิ่มรายการเข้าคลังแล้ว");
+      });
+      $("#restock-form").addEventListener("submit", event => {
+        event.preventDefault();
+        const item = state.items.find(entry => entry.id === restockItemId);
+        const qty = Number($("#restock-qty").value);
+        if (!item || !Number.isSafeInteger(qty) || qty < 1) return showToast("กรุณาระบุจำนวนเติมให้ถูกต้อง");
+        if (!Number.isSafeInteger(item.available + qty) || !Number.isSafeInteger(item.total + qty)) return showToast("จำนวนมากเกินกว่าที่ระบบรองรับ");
+        item.available += qty;
+        item.total += qty;
+        event.target.reset();
+        $("#restock-dialog").close();
+        commit("เติมสต็อกเข้าคลังแล้ว");
+      });
+      $("#note-form").addEventListener("submit", event => {
+        event.preventDefault();
+        const item = state.items.find(entry => entry.id === noteItemId);
+        if (!item) return showToast("ไม่พบรายการนี้");
+        item.note = $("#item-note").value.trim();
+        $("#note-dialog").close();
+        commit("บันทึกหมายเหตุแล้ว");
+      });
+      $("#checkout-form").addEventListener("submit", event => {
+        event.preventDefault();
+        const item = state.items.find(entry => entry.id === $("#checkout-item").value);
+        const qty = Number($("#checkout-qty").value);
+        const borrower = $("#checkout-name").value.trim();
+        if (!borrower) return showToast("กรุณากรอกชื่อผู้เบิกหรือจุดใช้งาน");
+        if (!item || !Number.isSafeInteger(qty) || qty < 1 || qty > item.available) return showToast("จำนวนไม่ถูกต้อง หรือของคงเหลือไม่เพียงพอ");
+        const loan = {
+          id: "loan-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+          itemId: item.id,
+          itemName: item.name,
+          qty,
+          borrower,
+          note: $("#checkout-note").value.trim(),
+          checkedOutAt: new Date().toISOString(),
+          status: "active",
+          returns: []
+        };
+        item.available -= qty;
+        state.loans.push(loan);
+        event.target.reset();
+        commit("บันทึกการเบิกแล้ว");
+        updateAvailableHint();
+        openPage("history");
+      });
+      $("#history-list").addEventListener("click", event => {
+        const returnButton = event.target.closest("[data-return]");
+        if (returnButton) {
+          const loan = state.loans.find(entry => entry.id === returnButton.dataset.return && entry.status === "active");
+          if (!loan) return;
+          returnLoanId = loan.id;
+          $("#return-title").textContent = "รับคืน: " + loan.itemName;
+          $("#return-context").textContent = `${loan.borrower} · เบิก ${loan.qty} ชิ้น · ต้องสรุปจำนวนคืนและจำนวนใช้หมด/เสียหาย/สูญหายให้รวม ${loan.qty} ชิ้น`;
+          $("#return-qty").max = loan.qty;
+          $("#writeoff-qty").max = loan.qty;
+          $("#return-qty").value = loan.qty;
+          $("#writeoff-qty").value = 0;
+          $("#return-balance").textContent = `ต้องระบุยอดรวม ${loan.qty} ชิ้น`;
+          $("#return-dialog").showModal();
+          return;
+        }
+        const cancelButton = event.target.closest("[data-cancel]");
+        if (!cancelButton) return;
+        const loan = state.loans.find(entry => entry.id === cancelButton.dataset.cancel && entry.status === "active");
+        if (!loan) return;
+        const item = state.items.find(entry => entry.id === loan.itemId);
+        if (!item) return showToast("ไม่พบรายการในคลัง จึงคืนยอดไม่ได้");
+        if (!window.confirm(`ยืนยันยกเลิกการเบิก ${loan.qty} ชิ้น “${loan.itemName}” และคืนยอดเข้าคลังหรือไม่?`)) return;
+        item.available += loan.qty;
+        loan.status = "cancelled";
+        loan.cancelledAt = new Date().toISOString();
+        commit("ยกเลิกการเบิกและคืนยอดเข้าคลังแล้ว");
+      });
+      const updateReturnBalance = () => {
+        const returned = Number($("#return-qty").value) || 0;
+        const writeoff = Number($("#writeoff-qty").value) || 0;
+        const loan = state.loans.find(entry => entry.id === returnLoanId);
+        const sum = returned + writeoff;
+        $("#return-balance").textContent = loan ? `ระบุแล้ว ${sum} / ${loan.qty} ชิ้น${sum === loan.qty ? " · ครบแล้ว" : " · ยอดยังไม่ครบ"}` : "";
+        $("#return-balance").classList.toggle("text-emerald-700", !!loan && sum === loan.qty);
+        $("#return-balance").classList.toggle("text-rose-700", !!loan && sum !== loan.qty);
+      };
+      $("#return-qty").addEventListener("input", updateReturnBalance);
+      $("#writeoff-qty").addEventListener("input", updateReturnBalance);
+      $("#return-form").addEventListener("submit", event => {
+        event.preventDefault();
+        const loan = state.loans.find(entry => entry.id === returnLoanId && entry.status === "active");
+        if (!loan) return showToast("ไม่พบรายการที่กำลังเบิก");
+        const returnedQty = Number($("#return-qty").value);
+        const writeoffQty = Number($("#writeoff-qty").value);
+        if (!Number.isSafeInteger(returnedQty) || !Number.isSafeInteger(writeoffQty) || returnedQty < 0 || writeoffQty < 0 || returnedQty + writeoffQty !== loan.qty) return showToast(`ยอดคืนและยอดใช้หมด/เสียหาย/สูญหายต้องรวมกันเท่ากับ ${loan.qty} ชิ้น`);
+        const item = state.items.find(entry => entry.id === loan.itemId);
+        if (!item) return showToast("ไม่พบรายการในคลัง จึงรับคืนไม่ได้");
+        item.available += returnedQty;
+        loan.returns.push({ returnedQty, writeoffQty, returnedAt: new Date().toISOString() });
+        loan.status = "returned";
+        $("#return-dialog").close();
+        commit("บันทึกการคืนและสรุปยอดเรียบร้อย");
+      });
+
+      render();
+      if (loadWarning) showToast(loadWarning);
+    })();
+  </script>
+</body>
+</html>
