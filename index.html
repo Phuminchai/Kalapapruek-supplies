@@ -7,6 +7,9 @@
   <title>คลังพัสดุ Kalapapruek | ระบบเบิก-คืน</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <style>
     body { font-family: "Leelawadee UI", Tahoma, sans-serif; }
     button, input, select, textarea { font: inherit; }
@@ -23,7 +26,10 @@
           <div class="min-w-0"><h1 class="truncate text-lg font-extrabold leading-tight">คลังพัสดุ Kalapapruek</h1><p class="text-xs text-slate-500">ระบบจัดการและเบิก-คืนของประจำสี</p></div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
-          <span class="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:inline-flex">● บันทึกในเครื่อง</span>
+          <span id="cloud-status" class="hidden rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600 sm:inline-flex">กำลังเชื่อมต่อ Cloud...</span>
+          <span id="user-email" class="hidden max-w-36 truncate text-xs text-slate-500 sm:inline"></span>
+          <button id="login-button" type="button" class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100">เข้าสู่ระบบผู้ดูแล</button>
+          <button id="logout-button" type="button" class="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">ออกจากระบบ</button>
           <button id="open-share" type="button" class="rounded-xl border border-orange-200 bg-white px-3 py-2 text-xs font-bold text-orange-700 shadow-sm hover:bg-orange-50" aria-label="แชร์ลิงก์หรือแสดง QR Code">🔗 แชร์ / QR Code</button>
         </div>
       </div>
@@ -65,10 +71,10 @@
 
       <section id="page-history" class="page hidden">
         <div class="mb-5"><p class="text-sm font-bold text-orange-600">ติดตามการเบิกและการคืน</p><h2 class="mt-1 text-2xl font-extrabold">ประวัติเบิก-คืน</h2><p class="mt-1 text-sm text-slate-500">รายการล่าสุดอยู่ด้านบน · คืนเข้าคลังและยอดใช้หมด/เสียหายแสดงแยกกัน</p></div>
-        <div id="history-list" class="grid gap-3 sm:grid-cols-2"></div>
+        <div id="history-list" class="space-y-5"></div>
       </section>
     </main>
-    <footer class="safe-bottom px-4 pb-6 text-center text-xs text-slate-400">ข้อมูลจัดเก็บใน LocalStorage ของเบราว์เซอร์เครื่องนี้</footer>
+    <footer class="safe-bottom px-4 pb-6 text-center text-xs text-slate-400">ข้อมูลจัดเก็บใน Firebase Cloud และซิงก์ระหว่างอุปกรณ์</footer>
   </div>
 
   <dialog id="add-dialog" class="w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/40">
@@ -130,6 +136,20 @@
   <script>
     (() => {
       const STORAGE_KEY = "kalapapruek-supplies-loans-v3";
+      const ADMIN_EMAILS = new Set(["phuminchai.b@gmail.com"]);
+      const firebaseConfig = {
+        apiKey: "AIzaSyCpGpkOolrDJE_28bTKJI2Lgv4saUtmTE",
+        authDomain: "kalapapruek-stock.firebaseapp.com",
+        projectId: "kalapapruek-stock",
+        storageBucket: "kalapapruek-stock.firebasestorage.app",
+        messagingSenderId: "161625477913",
+        appId: "1:161625477913:web:1ed312b9ef0438aa91ab88",
+        measurementId: "G-BTQN6XZMQQ"
+      };
+      const firebaseApp = firebase.initializeApp(firebaseConfig);
+      const auth = firebaseApp.auth();
+      const db = firebaseApp.firestore();
+      const inventoryRef = db.collection("appData").doc("inventory");
       const initialItems = [
         { id: "red-drink", name: "น้ำแดง", available: 48, total: 48, note: "" },
         { id: "snacks", name: "ขนม", available: 80, total: 80, note: "" },
@@ -137,29 +157,41 @@
         { id: "fans", name: "พัด", available: 20, total: 20, note: "" }
       ];
       const $ = selector => document.querySelector(selector);
-      let state;
+      let state = { items: initialItems.map(item => ({ ...item })), loans: [] };
       let noteItemId = null;
       let restockItemId = null;
       let returnLoanId = null;
       let toastTimer;
-      let loadWarning = "";
+      let currentUser = null;
+      let snapshotReady = false;
+      let hasInventoryDocument = false;
+      let creatingInitialDocument = false;
 
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        state = saved ? JSON.parse(saved) : { items: initialItems.map(item => ({ ...item })), loans: [] };
-        if (!state || !Array.isArray(state.items) || !Array.isArray(state.loans)) throw new Error("ข้อมูลคลังไม่ถูกต้อง");
-        state.items.forEach(item => {
-          if (!Number.isSafeInteger(item.available) || item.available < 0 || !Number.isSafeInteger(item.total) || item.total < item.available) throw new Error("จำนวนสต็อกไม่ถูกต้อง");
+      function isAdmin() {
+        return !!currentUser && currentUser.emailVerified && typeof currentUser.email === "string" && ADMIN_EMAILS.has(currentUser.email.toLowerCase());
+      }
+      function normalizeState(data) {
+        if (!data || !Array.isArray(data.items) || !Array.isArray(data.loans)) throw new Error("ข้อมูล Firestore ไม่ถูกต้อง");
+        data.items.forEach(item => {
+          if (typeof item.id !== "string" || typeof item.name !== "string" || !Number.isSafeInteger(item.available) || item.available < 0 || !Number.isSafeInteger(item.total) || item.total < item.available) throw new Error("ข้อมูลสต็อกไม่ถูกต้อง");
           if (typeof item.note !== "string") item.note = "";
         });
-        state.loans.forEach(loan => {
+        data.loans.forEach(loan => {
           if (!Array.isArray(loan.returns)) loan.returns = [];
           if (loan.status !== "returned" && loan.status !== "cancelled") loan.status = "active";
         });
-      } catch (error) {
-        console.error("ไม่สามารถอ่านข้อมูลคลังเบิก-คืนได้", error);
-        state = { items: initialItems.map(item => ({ ...item })), loans: [] };
-        loadWarning = "ข้อมูลเดิมอ่านไม่ได้ จึงเริ่มด้วยรายการตัวอย่าง";
+        return { items: data.items, loans: data.loans };
+      }
+      function readLegacyState() {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (!saved) return { items: initialItems.map(item => ({ ...item })), loans: [] };
+          return normalizeState(JSON.parse(saved));
+        } catch (error) {
+          console.error("ไม่สามารถอ่านข้อมูลเดิมจาก LocalStorage เพื่อนำเข้าครั้งแรกได้", error);
+          showToast("อ่านข้อมูลเดิมไม่ได้ จึงเริ่มด้วยรายการตัวอย่าง");
+          return { items: initialItems.map(item => ({ ...item })), loans: [] };
+        }
       }
 
       function escapeHtml(value) {
@@ -172,23 +204,89 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => toast.classList.add("hidden"), 2800);
       }
-      function save() {
+      async function commit(message, update) {
+        if (!isAdmin()) {
+          showToast("กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแลก่อนแก้ไขข้อมูล");
+          return false;
+        }
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          await db.runTransaction(async transaction => {
+            const snapshot = await transaction.get(inventoryRef);
+            if (!snapshot.exists) throw new Error("APP:ข้อมูล Cloud ยังไม่พร้อม กรุณารอสักครู่แล้วลองใหม่");
+            const latest = normalizeState(snapshot.data());
+            update(latest);
+            transaction.update(inventoryRef, {
+              items: latest.items,
+              loans: latest.loans,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedBy: currentUser.email
+            });
+          });
+          showToast(message);
           return true;
         } catch (error) {
-          console.error("ไม่สามารถบันทึกข้อมูลคลังเบิก-คืนได้", error);
+          console.error("ไม่สามารถบันทึกข้อมูลลง Firestore ได้", error);
+          showToast(error.message && error.message.startsWith("APP:") ? error.message.slice(4) : "บันทึก Cloud ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตและสิทธิ์ Firestore");
           return false;
         }
       }
-      function commit(message) {
-        const saved = save();
+      function setCloudStatus(message, failed) {
+        const status = $("#cloud-status");
+        status.textContent = message;
+        status.classList.remove("bg-slate-100", "text-slate-600", "bg-rose-50", "text-rose-700", "bg-emerald-50", "text-emerald-700");
+        status.classList.add(failed ? "bg-rose-50" : "bg-emerald-50", failed ? "text-rose-700" : "text-emerald-700");
+      }
+      function updateAuthUi() {
+        const admin = isAdmin();
+        $("#login-button").classList.toggle("hidden", !!currentUser);
+        $("#logout-button").classList.toggle("hidden", !currentUser);
+        $("#user-email").classList.toggle("hidden", !currentUser);
+        $("#user-email").textContent = currentUser ? currentUser.email + (admin ? " · ผู้ดูแล" : " · ดูอย่างเดียว") : "";
+        $("#open-add").disabled = !admin;
+        $("#open-add").classList.toggle("opacity-50", !admin);
+        if (currentUser && !admin) setCloudStatus("บัญชีนี้ไม่มีสิทธิ์แก้ไข", true);
         render();
-        showToast(saved ? message : "เปลี่ยนข้อมูลแล้ว แต่บันทึกในเครื่องไม่สำเร็จ กรุณาตรวจสอบพื้นที่ LocalStorage");
+      }
+      async function initializeCloudDocument() {
+        if (creatingInitialDocument || hasInventoryDocument || !isAdmin()) return;
+        creatingInitialDocument = true;
+        try {
+          const imported = readLegacyState();
+          await db.runTransaction(async transaction => {
+            const snapshot = await transaction.get(inventoryRef);
+            if (!snapshot.exists) {
+              transaction.set(inventoryRef, {
+                ...imported,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: currentUser.email
+              });
+            }
+          });
+        } catch (error) {
+          console.error("ไม่สามารถเริ่มต้นข้อมูล Firestore ได้", error);
+          setCloudStatus("เริ่มต้น Cloud ไม่สำเร็จ", true);
+          showToast("เริ่มต้นข้อมูล Cloud ไม่สำเร็จ กรุณาตรวจสอบ Firestore Rules");
+        } finally {
+          creatingInitialDocument = false;
+        }
       }
       function formatTimestamp(value) {
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? "ไม่ระบุเวลา" : date.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+      }
+      function dateKey(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "unknown";
+        return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+      }
+      function formatDate(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "ไม่ระบุวันที่" : date.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+      }
+      function formatTime(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "ไม่ระบุเวลา" : date.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) + " น.";
       }
       function emptyState(title, message) {
         return `<div class="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center sm:col-span-2"><div class="text-3xl">📋</div><p class="mt-2 font-bold">${title}</p><p class="mt-1 text-sm text-slate-500">${message}</p></div>`;
@@ -205,6 +303,7 @@
         }, { inUse: 0, returned: 0, writeoff: 0 });
       }
       function render() {
+        const admin = isAdmin();
         const activeLoans = state.loans.filter(loan => loan.status === "active");
         const available = state.items.reduce((sum, item) => sum + item.available, 0);
         const inUse = activeLoans.reduce((sum, loan) => sum + loan.qty, 0);
@@ -215,6 +314,8 @@
         $("#stat-in-use").textContent = inUse;
         $("#stat-returned").textContent = returned;
         $("#stat-written-off").textContent = writtenOff;
+        $("#open-add").disabled = !admin;
+        $("#open-add").classList.toggle("opacity-50", !admin);
         $("#item-count").textContent = state.items.length + " รายการ";
         $("#inventory-list").innerHTML = state.items.length ? state.items.map(item => {
           const totals = quantitiesFor(item.id);
@@ -223,7 +324,7 @@
             <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h4 class="break-words font-extrabold">${escapeHtml(item.name)}</h4><p class="mt-1 text-xs text-slate-500">กำลังเบิก ${totals.inUse} · คืนแล้ว ${totals.returned} · ใช้หมด/เสียหาย/สูญหาย ${totals.writeoff}</p></div><span class="shrink-0 rounded-xl bg-emerald-50 px-3 py-2 text-right"><strong class="block text-xl text-emerald-700">${item.available} <span class="text-sm font-bold">/ ${item.total}</span></strong><span class="text-[11px] text-emerald-700">เหลือ / จากทั้งหมด (ชิ้น)</span></span></div>
             <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-400" style="width:${ratio}%"></div></div>
             <p class="mt-3 min-h-5 break-words text-sm ${item.note ? "text-slate-600" : "text-slate-400"}">${item.note ? escapeHtml(item.note) : "ยังไม่มีหมายเหตุ"}</p>
-            <div class="mt-3 grid grid-cols-3 gap-2"><button data-restock="${escapeHtml(item.id)}" class="rounded-xl bg-emerald-50 px-2 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100">＋ เติมสต็อก</button><button data-note="${escapeHtml(item.id)}" class="rounded-xl border border-slate-200 px-2 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">หมายเหตุ</button><button data-delete="${escapeHtml(item.id)}" class="rounded-xl border border-rose-200 px-2 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50">ลบ</button></div>
+            <div class="mt-3 grid grid-cols-3 gap-2"><button data-restock="${escapeHtml(item.id)}" ${admin ? "" : "disabled"} class="rounded-xl bg-emerald-50 px-2 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">＋ เติมสต็อก</button><button data-note="${escapeHtml(item.id)}" ${admin ? "" : "disabled"} class="rounded-xl border border-slate-200 px-2 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">หมายเหตุ</button><button data-delete="${escapeHtml(item.id)}" ${admin ? "" : "disabled"} class="rounded-xl border border-rose-200 px-2 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50">ลบ</button></div>
           </article>`;
         }).join("") : emptyState("ยังไม่มีของในคลัง", "กด “เพิ่มรายการ” เพื่อเริ่มจัดการเสบียง");
         const selected = $("#checkout-item").value;
@@ -232,22 +333,46 @@
         if (state.items.some(item => item.id === selected && item.available > 0)) $("#checkout-item").value = selected;
         updateAvailableHint();
         const canCheckout = state.items.some(item => item.available > 0);
-        $("#checkout-form button[type=submit]").disabled = !canCheckout;
-        $("#checkout-form button[type=submit]").classList.toggle("opacity-50", !canCheckout);
+        $("#checkout-form button[type=submit]").disabled = !canCheckout || !admin;
+        $("#checkout-form button[type=submit]").classList.toggle("opacity-50", !canCheckout || !admin);
         const sortedLoans = [...state.loans].sort((a, b) => new Date(b.checkedOutAt) - new Date(a.checkedOutAt));
-        $("#history-list").innerHTML = sortedLoans.length ? sortedLoans.map(loan => {
-          const returnedQty = loan.returns.reduce((sum, entry) => sum + entry.returnedQty, 0);
-          const writeoffQty = loan.returns.reduce((sum, entry) => sum + entry.writeoffQty, 0);
-          const active = loan.status === "active";
-          const cancelled = loan.status === "cancelled";
-          const statusText = active ? "กำลังเบิก" : cancelled ? "ยกเลิกเบิกแล้ว · คืนยอดทั้งหมด" : "ปิดรายการคืนแล้ว";
-          const statusStyle = active ? "bg-orange-50 text-orange-700" : cancelled ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700";
-          const returnDetails = loan.returns.map(entry => `<div class="mt-3 rounded-xl bg-blue-50 p-3 text-sm"><p class="font-bold text-blue-800">คืนเข้าคลัง ${entry.returnedQty} ชิ้น</p><p class="mt-1 text-rose-700">ใช้หมด / เสียหาย / สูญหาย ${entry.writeoffQty} ชิ้น</p><p class="mt-1 text-xs text-slate-500">คืนเมื่อ ${escapeHtml(formatTimestamp(entry.returnedAt))}</p></div>`).join("");
-          return `<article class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h3 class="font-extrabold">${escapeHtml(loan.itemName)}</h3><span class="rounded-full ${statusStyle} px-2.5 py-1 text-[11px] font-bold">${statusText}</span></div><p class="mt-1 break-words text-sm text-slate-600">${escapeHtml(loan.borrower)}</p><p class="mt-2 text-sm">เบิก ${loan.qty} ชิ้น · คืนเข้าคลัง ${returnedQty} · ใช้หมด/เสียหาย/สูญหาย ${writeoffQty}</p>${loan.note ? `<p class="mt-2 whitespace-pre-wrap break-words rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">${escapeHtml(loan.note)}</p>` : ""}<p class="mt-2 text-xs text-slate-500">เบิกเมื่อ ${escapeHtml(formatTimestamp(loan.checkedOutAt))}</p>${cancelled ? `<p class="mt-1 text-xs text-slate-500">ยกเลิกเมื่อ ${escapeHtml(formatTimestamp(loan.cancelledAt))}</p>` : ""}${returnDetails}</div></div>
-            ${active ? `<div class="mt-4 grid gap-2 sm:grid-cols-2"><button data-return="${escapeHtml(loan.id)}" class="w-full rounded-xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700">คืน / สรุปยอด</button><button data-cancel="${escapeHtml(loan.id)}" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 font-bold text-rose-700 hover:bg-rose-100">ยกเลิกเบิก</button></div>` : ""}
-          </article>`;
-        }).join("") : emptyState("ยังไม่มีประวัติเบิก-คืน", "รายการที่ยืนยันเบิกจะปรากฏที่นี่");
+        if (!sortedLoans.length) {
+          $("#history-list").innerHTML = emptyState("ยังไม่มีประวัติเบิก-คืน", "รายการที่ยืนยันเบิกจะปรากฏที่นี่");
+        } else {
+          const groupedLoans = new Map();
+          sortedLoans.forEach(loan => {
+            const key = dateKey(loan.checkedOutAt);
+            if (!groupedLoans.has(key)) groupedLoans.set(key, []);
+            groupedLoans.get(key).push(loan);
+          });
+          $("#history-list").innerHTML = [...groupedLoans.entries()].map(([key, loans]) => {
+            const dateLabel = key === "unknown" ? "ไม่ระบุวันที่" : formatDate(loans[0].checkedOutAt);
+            const rows = loans.map(loan => {
+              const returnedQty = loan.returns.reduce((sum, entry) => sum + entry.returnedQty, 0);
+              const writeoffQty = loan.returns.reduce((sum, entry) => sum + entry.writeoffQty, 0);
+              const active = loan.status === "active";
+              const cancelled = loan.status === "cancelled";
+              const statusText = active ? "เบิก" : cancelled ? "ยกเลิก" : "คืนแล้ว";
+              const statusStyle = active ? "bg-orange-50 text-orange-700" : cancelled ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700";
+              const returnSummary = cancelled
+                ? "ยกเลิกเบิก · คืนยอดทั้งหมด"
+                : loan.returns.length
+                  ? `คืนเข้าคลัง ${returnedQty} ชิ้น · ใช้หมด/เสียหาย/สูญหาย ${writeoffQty} ชิ้น${loan.returns.map(entry => ` · คืนเมื่อ ${formatTime(entry.returnedAt)}`).join("")}`
+                  : "ยังไม่มีการคืน";
+              const details = [returnSummary, loan.note ? `หมายเหตุ: ${loan.note}` : ""].filter(Boolean).join(" · ");
+              return `<div class="grid grid-cols-[5.5rem_minmax(0,1fr)] border-b border-slate-200 last:border-b-0">
+                <div class="border-r border-slate-200 px-2 py-3 text-center sm:px-3"><p class="text-sm font-bold tabular-nums">${escapeHtml(formatTime(loan.checkedOutAt))}</p><span class="mt-1 inline-flex rounded-full ${statusStyle} px-2 py-0.5 text-[11px] font-bold">${statusText}</span></div>
+                <div class="min-w-0 px-3 py-3 sm:px-4"><p class="break-words text-sm leading-6"><strong>${escapeHtml(loan.borrower)}</strong> — เบิก <strong>${escapeHtml(loan.itemName)}</strong> จำนวน ${loan.qty} ชิ้น</p><p class="mt-1 break-words text-xs leading-5 text-slate-500">${escapeHtml(details)}</p>
+                  ${active ? `<div class="mt-3 flex flex-wrap gap-2"><button data-return="${escapeHtml(loan.id)}" ${admin ? "" : "disabled"} class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">คืน / สรุปยอด</button><button data-cancel="${escapeHtml(loan.id)}" ${admin ? "" : "disabled"} class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50">ยกเลิกเบิก</button></div>` : cancelled ? `<p class="mt-1 text-[11px] text-slate-400">ยกเลิกเมื่อ ${escapeHtml(formatTimestamp(loan.cancelledAt))}</p>` : ""}
+                </div>
+              </div>`;
+            }).join("");
+            return `<section class="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+              <h3 class="border-b border-slate-300 bg-slate-100 px-4 py-3 text-base font-extrabold text-slate-800 sm:text-lg">วันที่ ${escapeHtml(dateLabel)}</h3>
+              <div class="border-x border-slate-200">${rows}</div>
+            </section>`;
+          }).join("");
+        }
       }
       function updateAvailableHint() {
         const item = state.items.find(entry => entry.id === $("#checkout-item").value);
@@ -333,48 +458,59 @@
         }
         if (state.loans.some(loan => loan.itemId === item.id && loan.status === "active")) return showToast("ยังลบไม่ได้ เพราะมีรายการที่กำลังเบิกอยู่");
         if (!window.confirm(`ยืนยันลบ “${item.name}” ออกจากคลังหรือไม่?`)) return;
-        state.loans.forEach(loan => { if (loan.itemId === item.id) loan.itemName = item.name; });
-        state.items = state.items.filter(entry => entry.id !== item.id);
-        commit("ลบรายการออกจากคลังแล้ว");
+        commit("ลบรายการออกจากคลังแล้ว", latest => {
+          if (latest.loans.some(loan => loan.itemId === item.id && loan.status === "active")) throw new Error("APP:รายการนี้มีของกำลังถูกเบิกอยู่");
+          latest.items = latest.items.filter(entry => entry.id !== item.id);
+        });
       });
-      $("#add-form").addEventListener("submit", event => {
+      $("#add-form").addEventListener("submit", async event => {
         event.preventDefault();
         const name = $("#new-item-name").value.trim();
         const qty = Number($("#new-item-qty").value);
         const note = $("#new-item-note").value.trim();
         if (!name || !Number.isSafeInteger(qty) || qty < 1) return showToast("กรุณากรอกชื่อและจำนวนให้ถูกต้อง");
-        const existing = state.items.find(item => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
-        if (existing) {
-          if (!Number.isSafeInteger(existing.available + qty) || !Number.isSafeInteger(existing.total + qty)) return showToast("จำนวนมากเกินกว่าที่ระบบรองรับ");
-          existing.available += qty;
-          existing.total += qty;
-          if (note) existing.note = note;
-        } else state.items.push({ id: "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7), name, available: qty, total: qty, note });
+        const existing = state.items.some(item => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+        const saved = await commit(existing ? "เติมจำนวนรายการเดิมเข้าคลังแล้ว" : "เพิ่มรายการเข้าคลังแล้ว", latest => {
+          const current = latest.items.find(item => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+          if (current) {
+            if (!Number.isSafeInteger(current.available + qty) || !Number.isSafeInteger(current.total + qty)) throw new Error("APP:จำนวนมากเกินกว่าที่ระบบรองรับ");
+            current.available += qty;
+            current.total += qty;
+            if (note) current.note = note;
+          } else latest.items.push({ id: "item-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7), name, available: qty, total: qty, note });
+        });
+        if (!saved) return;
         event.target.reset();
         $("#add-dialog").close();
-        commit(existing ? "เติมจำนวนรายการเดิมเข้าคลังแล้ว" : "เพิ่มรายการเข้าคลังแล้ว");
       });
-      $("#restock-form").addEventListener("submit", event => {
+      $("#restock-form").addEventListener("submit", async event => {
         event.preventDefault();
         const item = state.items.find(entry => entry.id === restockItemId);
         const qty = Number($("#restock-qty").value);
         if (!item || !Number.isSafeInteger(qty) || qty < 1) return showToast("กรุณาระบุจำนวนเติมให้ถูกต้อง");
-        if (!Number.isSafeInteger(item.available + qty) || !Number.isSafeInteger(item.total + qty)) return showToast("จำนวนมากเกินกว่าที่ระบบรองรับ");
-        item.available += qty;
-        item.total += qty;
+        const saved = await commit("เติมสต็อกเข้าคลังแล้ว", latest => {
+          const current = latest.items.find(entry => entry.id === restockItemId);
+          if (!current) throw new Error("APP:ไม่พบรายการในคลัง");
+          if (!Number.isSafeInteger(current.available + qty) || !Number.isSafeInteger(current.total + qty)) throw new Error("APP:จำนวนมากเกินกว่าที่ระบบรองรับ");
+          current.available += qty;
+          current.total += qty;
+        });
+        if (!saved) return;
         event.target.reset();
         $("#restock-dialog").close();
-        commit("เติมสต็อกเข้าคลังแล้ว");
       });
-      $("#note-form").addEventListener("submit", event => {
+      $("#note-form").addEventListener("submit", async event => {
         event.preventDefault();
-        const item = state.items.find(entry => entry.id === noteItemId);
-        if (!item) return showToast("ไม่พบรายการนี้");
-        item.note = $("#item-note").value.trim();
+        const note = $("#item-note").value.trim();
+        const saved = await commit("บันทึกหมายเหตุแล้ว", latest => {
+          const item = latest.items.find(entry => entry.id === noteItemId);
+          if (!item) throw new Error("APP:ไม่พบรายการนี้");
+          item.note = note;
+        });
+        if (!saved) return;
         $("#note-dialog").close();
-        commit("บันทึกหมายเหตุแล้ว");
       });
-      $("#checkout-form").addEventListener("submit", event => {
+      $("#checkout-form").addEventListener("submit", async event => {
         event.preventDefault();
         const item = state.items.find(entry => entry.id === $("#checkout-item").value);
         const qty = Number($("#checkout-qty").value);
@@ -392,10 +528,14 @@
           status: "active",
           returns: []
         };
-        item.available -= qty;
-        state.loans.push(loan);
+        const saved = await commit("บันทึกการเบิกแล้ว", latest => {
+          const current = latest.items.find(entry => entry.id === loan.itemId);
+          if (!current || !Number.isSafeInteger(qty) || qty < 1 || qty > current.available) throw new Error("APP:จำนวนไม่ถูกต้อง หรือของคงเหลือไม่เพียงพอ");
+          current.available -= qty;
+          latest.loans.push(loan);
+        });
+        if (!saved) return;
         event.target.reset();
-        commit("บันทึกการเบิกแล้ว");
         updateAvailableHint();
         openPage("history");
       });
@@ -422,10 +562,14 @@
         const item = state.items.find(entry => entry.id === loan.itemId);
         if (!item) return showToast("ไม่พบรายการในคลัง จึงคืนยอดไม่ได้");
         if (!window.confirm(`ยืนยันยกเลิกการเบิก ${loan.qty} ชิ้น “${loan.itemName}” และคืนยอดเข้าคลังหรือไม่?`)) return;
-        item.available += loan.qty;
-        loan.status = "cancelled";
-        loan.cancelledAt = new Date().toISOString();
-        commit("ยกเลิกการเบิกและคืนยอดเข้าคลังแล้ว");
+        commit("ยกเลิกการเบิกและคืนยอดเข้าคลังแล้ว", latest => {
+          const currentLoan = latest.loans.find(entry => entry.id === loan.id && entry.status === "active");
+          const currentItem = latest.items.find(entry => entry.id === loan.itemId);
+          if (!currentLoan || !currentItem) throw new Error("APP:ไม่พบรายการที่กำลังเบิก");
+          currentItem.available += currentLoan.qty;
+          currentLoan.status = "cancelled";
+          currentLoan.cancelledAt = new Date().toISOString();
+        });
       });
       const updateReturnBalance = () => {
         const returned = Number($("#return-qty").value) || 0;
@@ -438,24 +582,76 @@
       };
       $("#return-qty").addEventListener("input", updateReturnBalance);
       $("#writeoff-qty").addEventListener("input", updateReturnBalance);
-      $("#return-form").addEventListener("submit", event => {
+      $("#return-form").addEventListener("submit", async event => {
         event.preventDefault();
         const loan = state.loans.find(entry => entry.id === returnLoanId && entry.status === "active");
         if (!loan) return showToast("ไม่พบรายการที่กำลังเบิก");
         const returnedQty = Number($("#return-qty").value);
         const writeoffQty = Number($("#writeoff-qty").value);
         if (!Number.isSafeInteger(returnedQty) || !Number.isSafeInteger(writeoffQty) || returnedQty < 0 || writeoffQty < 0 || returnedQty + writeoffQty !== loan.qty) return showToast(`ยอดคืนและยอดใช้หมด/เสียหาย/สูญหายต้องรวมกันเท่ากับ ${loan.qty} ชิ้น`);
-        const item = state.items.find(entry => entry.id === loan.itemId);
-        if (!item) return showToast("ไม่พบรายการในคลัง จึงรับคืนไม่ได้");
-        item.available += returnedQty;
-        loan.returns.push({ returnedQty, writeoffQty, returnedAt: new Date().toISOString() });
-        loan.status = "returned";
+        const saved = await commit("บันทึกการคืนและสรุปยอดเรียบร้อย", latest => {
+          const currentLoan = latest.loans.find(entry => entry.id === returnLoanId && entry.status === "active");
+          const item = currentLoan && latest.items.find(entry => entry.id === currentLoan.itemId);
+          if (!currentLoan || !item) throw new Error("APP:ไม่พบรายการที่กำลังเบิกหรือไม่พบของในคลัง");
+          if (returnedQty + writeoffQty !== currentLoan.qty) throw new Error(`APP:ยอดคืนและยอดใช้หมด/เสียหาย/สูญหายต้องรวมกันเท่ากับ ${currentLoan.qty} ชิ้น`);
+          item.available += returnedQty;
+          currentLoan.returns.push({ returnedQty, writeoffQty, returnedAt: new Date().toISOString() });
+          currentLoan.status = "returned";
+        });
+        if (!saved) return;
         $("#return-dialog").close();
-        commit("บันทึกการคืนและสรุปยอดเรียบร้อย");
       });
 
       render();
-      if (loadWarning) showToast(loadWarning);
+      $("#login-button").addEventListener("click", async () => {
+        try {
+          await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        } catch (error) {
+          console.error("ไม่สามารถเข้าสู่ระบบผู้ดูแลได้", error);
+          showToast(error.code === "auth/unauthorized-domain" ? "โดเมนนี้ยังไม่ได้เพิ่มใน Firebase Authorized domains" : "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่");
+        }
+      });
+      $("#logout-button").addEventListener("click", async () => {
+        try {
+          await auth.signOut();
+        } catch (error) {
+          console.error("ไม่สามารถออกจากระบบได้", error);
+          showToast("ออกจากระบบไม่สำเร็จ กรุณาลองใหม่");
+        }
+      });
+      auth.onAuthStateChanged(user => {
+        currentUser = user;
+        updateAuthUi();
+        if (user && !isAdmin()) showToast("บัญชีนี้ดูข้อมูลได้ แต่ไม่มีสิทธิ์แก้ไข");
+        if (snapshotReady && !hasInventoryDocument && isAdmin()) initializeCloudDocument();
+      }, error => {
+        console.error("ตรวจสอบสถานะผู้ใช้ Firebase ไม่สำเร็จ", error);
+        showToast("ตรวจสอบสถานะผู้ใช้ไม่สำเร็จ");
+      });
+      inventoryRef.onSnapshot(snapshot => {
+        snapshotReady = true;
+        hasInventoryDocument = snapshot.exists;
+        if (snapshot.exists) {
+          try {
+            state = normalizeState(snapshot.data());
+            setCloudStatus("เชื่อมต่อ Cloud แล้ว · ซิงก์เรียลไทม์", false);
+            render();
+          } catch (error) {
+            console.error("ข้อมูลคลังใน Firestore ไม่ถูกต้อง", error);
+            setCloudStatus("ข้อมูล Cloud ไม่ถูกต้อง", true);
+            showToast("ข้อมูลคลังใน Firestore มีรูปแบบไม่ถูกต้อง");
+          }
+          return;
+        }
+        state = { items: initialItems.map(item => ({ ...item })), loans: [] };
+        setCloudStatus(isAdmin() ? "กำลังเตรียมข้อมูล Cloud" : "รอผู้ดูแลเริ่มต้นข้อมูล Cloud", false);
+        render();
+        if (isAdmin()) initializeCloudDocument();
+      }, error => {
+        console.error("ไม่สามารถซิงก์ข้อมูล Firestore ได้", error);
+        setCloudStatus("เชื่อมต่อ Firestore ไม่สำเร็จ", true);
+        showToast("โหลด Cloud ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตและ Firestore Rules");
+      });
     })();
   </script>
 </body>
